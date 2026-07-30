@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import re
 
 RAW_PATH = os.path.join("data_pipeline", "data", "raw", "books_raw.csv")
 CLEAN_PATH = os.path.join("data_pipeline", "data", "processed", "books_clean.csv")
@@ -8,9 +9,12 @@ RATING_MAP = {"One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5}
 
 
 def clean_price(price):
-    # prices come in as "£51.77" - strip the currency symbol and convert to float
+    # prices come in as "£51.77" - but encoding issues can turn the £
+    # symbol into junk characters like "Â£", so instead of replacing one
+    # exact symbol, strip everything except digits and the decimal point
     try:
-        return float(price.replace("£", "").strip())
+        numeric_str = re.sub(r"[^\d.]", "", str(price))
+        return float(numeric_str)
     except (ValueError, AttributeError):
         return None  # unparsable price, handled later with median imputation
 

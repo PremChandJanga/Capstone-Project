@@ -13,6 +13,7 @@ def get_category_links():
     # category URLs have a random numeric id in them (e.g. romance_8)
     # so easier to just grab them from the sidebar instead of hardcoding
     resp = requests.get(BASE_URL)
+    resp.encoding = "utf-8"  # force correct decoding, site sometimes gets mis-detected as ISO-8859-1
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -31,6 +32,7 @@ def scrape_category(name, url):
 
     while next_url:
         resp = requests.get(next_url)
+        resp.encoding = "utf-8"  # same fix as above, applied per page
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
