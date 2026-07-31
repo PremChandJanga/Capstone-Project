@@ -145,7 +145,25 @@ number of high-value outliers pulling the range upward, consistent with
 what the fare histogram already showed.
 
 ### Cells 16–17 — Outlier counts for `age` and `fare` (IQR rule)
-*(to be added — pending run output)*
+Applies the standard IQR (interquartile range) rule to count outliers
+in each column separately.
+
+**Why the IQR rule instead of, e.g., a fixed cutoff or z-score method:**
+The IQR rule adapts to each column's own spread rather than using an
+arbitrary fixed threshold (like "age > 70"), and unlike a z-score
+approach, it doesn't assume the data is normally distributed — which
+matters here since `fare` is visibly right-skewed, not bell-shaped.
+`Q1 - 1.5*IQR` / `Q3 + 1.5*IQR` is the conventional, widely-used
+boundary for flagging a value as unusual relative to the middle 50% of
+that column's own data.
+
+**Why bounds/outlier counts are computed separately per column, not
+together:** `age` and `fare` have completely different scales and
+distributions (age is roughly symmetric, fare is heavily right-skewed),
+so a shared threshold would be meaningless — each column needs its own
+Q1, Q3, and IQR computed independently before the rule is applied.
+
+*(Outlier counts to be filled in from actual run output.)*
 
 ### `02_modeling.ipynb` — Part B: Modeling pipeline
 *(to be added)*
