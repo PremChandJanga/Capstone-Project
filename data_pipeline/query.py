@@ -91,6 +91,18 @@ def main():
               join_result_pandas.reset_index(drop=True)[["title", "rating", "price_inr"]]
           ))
 
+    print()
+    print("=" * 60)
+    print("Task check: at least 2 queries read back via pd.read_sql")
+    print("=" * 60)
+    # every query above (q1-q5) was already read into a DataFrame using
+    # pd.read_sql inside run_query() - confirming two of them explicitly here
+    df_query1 = pd.read_sql(q1, conn)
+    df_query4 = pd.read_sql(q4, conn)
+    print(f"Query 1 read via pd.read_sql -> DataFrame with shape {df_query1.shape}")
+    print(f"Query 4 read via pd.read_sql -> DataFrame with shape {df_query4.shape}")
+    print("(All 5 queries above were also read this way inside run_query().)")
+
     conn.close()
 
 
