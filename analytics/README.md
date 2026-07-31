@@ -165,5 +165,36 @@ Q1, Q3, and IQR computed independently before the rule is applied.
 
 *(Outlier counts to be filled in from actual run output.)*
 
+### Cell 18 — Mean, median, mode for `fare`
+Computes the three standard measures of central tendency for `fare`:
+- **Mean** — sum of all fares divided by passenger count. Sensitive to
+  extreme values, since a handful of very expensive 1st-class tickets
+  can pull it noticeably higher than what most passengers actually paid.
+- **Median** — the middle fare once all values are sorted. Not affected
+  by how extreme the highest/lowest values are, only their sorted
+  position, making it a better read on the "typical" fare.
+- **Mode** — the single most frequently occurring exact fare value.
+  `.mode()` returns a list (in case multiple values tie for most
+  common), so the first entry is taken.
+
+*(Actual mean/median/mode values to be filled in from run output.)*
+
+### Cell 19 — Determining skewness from mean/median/mode
+Compares the three values computed in Cell 18 to determine the shape of
+`fare`'s distribution, using the standard rule of thumb:
+- `mean > median > mode` → **right-skewed** (long tail toward high
+  values) — the mean is pulled upward by a small number of high fares
+- `mean < median < mode` → **left-skewed** (long tail toward low
+  values) — the mean is pulled downward by a small number of low fares
+- All three roughly equal → **symmetric**, no strong pull either way
+
+The conclusion is derived directly from the computed values with an
+`if`/`elif`/`else` check, rather than assumed in advance — it confirms
+whether the pattern already suggested by the histogram and box plot
+(fare's long tail toward expensive 1st-class fares) holds up
+numerically, and states the actual ordering as evidence.
+
+*(Actual skew conclusion to be filled in from run output.)*
+
 ### `02_modeling.ipynb` — Part B: Modeling pipeline
 *(to be added)*
