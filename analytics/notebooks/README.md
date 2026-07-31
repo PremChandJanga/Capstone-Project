@@ -99,5 +99,27 @@ kept since it's already numeric and ready for modeling.
 
 ---
 
-## `02_modeling.ipynb` — Part B: Modeling pipeline
+### Cells 12–13 — Histograms for `age` and `fare`
+Plots the distribution shape of each column separately.
+
+**Data story — `age`:** The age distribution is roughly unimodal and
+centered in the young-to-middle-adult range, with the majority of
+passengers falling between about 20 and 50 years old. There's a smaller
+secondary cluster of children and infants at the low end, and the
+distribution tapers off gradually into older ages, with relatively few
+passengers above 60. This is a fairly typical bell-shaped spread for a
+passenger population that includes some traveling families but skews
+toward working-age adults.
+
+**Data story — `fare`:** The fare distribution is heavily right-skewed
+— most passengers paid relatively low fares (concentrated roughly in
+the £0–50 range), reflecting that the majority traveled 3rd class,
+which was the cheapest. A long tail stretches out toward much higher
+fares (£200+), driven by a smaller number of 1st-class passengers who
+paid significantly more. This shape — a tall cluster near zero with a
+thin tail extending right — is the classic signature of a right-skewed
+distribution, and it foreshadows why `fare`'s mean will likely sit
+noticeably above its median once those are computed.
+
+### `02_modeling.ipynb` — Part B: Modeling pipeline
 *(to be added)*
