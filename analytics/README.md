@@ -1,383 +1,108 @@
 # Module 2 — Analytics (`/analytics`)
 
-Zepto's analyst-to-data-scientist workflow in one pass: profile a dataset,
-clean it defensibly, tell a visual story, then build a predictive-modeling
-pipeline — all on the same cleaned data, loaded once.
+Zepto's analyst-to-data-scientist workflow: profile the Titanic dataset,
+clean it, explore it visually, then build a modeling pipeline — all on
+one cleaned dataset, loaded once.
 
-**Dataset:** Titanic, loaded via `sns.load_dataset('titanic')` — exactly
-once, in the very first cell of `01_eda.ipynb`. Immediately after loading,
-the raw DataFrame is saved to `titanic.csv` as a committed offline
-fallback, so grading can proceed via `pd.read_csv("titanic.csv")` even
-without network access. Every subsequent step, in both notebooks, works
-off that same load — no second `sns.load_dataset` call anywhere.
+**Dataset load:** `sns.load_dataset('titanic')` is called **once**, in
+Cell 1 of `01_eda.ipynb`. Immediately saved as `titanic.csv` so grading
+can run offline via `pd.read_csv` if needed. Nothing after Cell 1 loads
+from the network again.
 
-**Structure**
 ```
 analytics/
 ├── notebooks/
-│   ├── 01_eda.ipynb       # Part A: profiling, cleaning, EDA story
-│   └── 02_modeling.ipynb  # Part B: modeling pipeline (to be added)
-├── titanic.csv            # committed offline fallback (raw load)
-├── data/
+│   ├── 01_eda.ipynb       # Part A: cleaning + EDA
+│   └── 02_modeling.ipynb  # Part B: modeling (to be added)
+├── titanic.csv             # offline fallback of the raw load
 └── README.md
 ```
 
 ---
 
-## `01_eda.ipynb` — Part A: Profiling, Cleaning, Data Story
+## Part A — Cleaning (Cells 1–11)
 
-### Cell 1 — Load dataset, save offline fallback, profile
-Loads Titanic via `sns.load_dataset('titanic')` (the one and only network
-call in the whole project), immediately saves it to `titanic.csv` before
-any cleaning happens, then prints `df.shape`, `df.info()`, and
-`df.describe()`.
-**Why save before cleaning:** if any later cleaning step has a bug and
-the notebook crashes, the raw data is still safely on disk — the fallback
-represents the true one-time load, not a partially-processed version.
-
-### Cell 2 — Missing value percentages
-Computes `(missing count / total rows) * 100` per column, filters to only
-columns that actually have missing values, and sorts descending.
-Result: `deck` (77.2%), `age` (19.9%), `embarked` (0.22%), `embark_town`
-(0.22%).
-
-### Cell 3 — Unique values of `deck`
-Prints `df["deck"].unique()` to inspect what values exist before deciding
-how to handle the column (mostly `NaN`, plus deck letters A–G).
-
-### Cell 4 — Drop `deck` column
-At ~77% missing, there isn't enough real data left to impute reliably —
-filling three-quarters of a column would be mostly fabricated values
-rather than genuine signal. Dropped entirely rather than imputed.
-
-### Cell 5 — Group-based median imputation for `age`
-`age` is ~20% missing — enough real data to base an imputation on,
-unlike `deck`. Instead of filling with one flat overall median, the
-median is computed **per `pclass` + `sex` group** (6 groups total) and
-merged back onto each row, since typical age varies meaningfully by
-class and gender on this dataset (e.g. 1st-class passengers skew older
-than 3rd-class). Implemented via `groupby().median()` + `merge()` +
-`fillna()`, deliberately avoiding `apply`/lambda/custom function
-definitions in favor of vectorized pandas operations.
-
-### Cell 6 — Unique values of `embarked` and `embark_town`
-Prints both columns' unique values to confirm they represent the same
-information at different levels of detail: `embarked` is a 1-letter
-port code (`S`/`C`/`Q`), `embark_town` is the full town name
-(`Southampton`/`Cherbourg`/`Queenstown`).
-
-### Cell 7 — Drop `embark_town` column
-Since `embark_town`'s value is fully derivable from `embarked` (first
-letter always matches), keeping both is redundant duplication of the
-same signal. `embarked` is kept since it's already in a compact,
-encoding-ready form for modeling later.
-
-### Cell 8 — Drop rows with missing `embarked`
-Only 0.22% of rows (2 total) have a missing `embarked` value. At this
-scale, dropping is simpler and safer than imputing a mode value —
-unlike `age`, there's no meaningful class/gender-based pattern worth
-preserving for just 2 rows, and the loss to the dataset is negligible.
-
-### Cell 9 — Drop `alive` column
-`alive` (`"yes"`/`"no"`) and `survived` (`1`/`0`) encode identical
-information in string vs. numeric form. `survived` is kept since it's
-already in the numeric form needed as the target variable for modeling.
-
-### Cell 10 — Drop `adult_male` column
-`adult_male` (`True`/`False`) is a narrower version of the signal
-already captured more completely by `who` (`man`/`woman`/`child`).
-Note: `who` and `adult_male` are **not** pure duplicates of `sex` —
-both also encode child-status (age < 18) on top of sex, so they aren't
-redundant with `sex` alone. Between the two, `who` was kept (it retains
-the distinct `child` category) and `adult_male` was dropped as the
-narrower, more redundant of the pair.
-
-### Cell 11 — Drop `class` column
-`class` (`"First"`/`"Second"`/`"Third"`) and `pclass` (`1`/`2`/`3`)
-encode identical information in string vs. numeric form. `pclass` is
-kept since it's already numeric and ready for modeling.
+| Cell | Action | Why |
+|---|---|---|
+| 1 | Load dataset, save `titanic.csv`, profile (`shape`, `info`, `describe`) | Save happens before any cleaning, so raw data is safe even if later cells fail |
+| 2 | % missing per column | `deck` 77%, `age` 20%, `embarked`/`embark_town` 0.2% |
+| 3 | Unique values of `deck` | Inspect before deciding how to handle it |
+| 4 | Drop `deck` | 77% missing — not enough real data to impute reliably |
+| 5 | Impute `age` with median **per `pclass`+`sex` group** | Typical age varies a lot by class/gender; better than one flat median. Done via `groupby`+`merge`+`fillna` (no lambda/functions) |
+| 6 | Unique values of `embarked`/`embark_town` | Confirm they duplicate the same info (code vs. full name) |
+| 7 | Drop `embark_town` | Fully redundant with `embarked` |
+| 8 | Drop rows missing `embarked` | Only 2 rows (0.2%) — safe to drop, not worth imputing |
+| 9 | Drop `alive` | Redundant with `survived` (same info, string vs. numeric) |
+| 10 | Drop `adult_male` | Narrower version of `who` (which also has `child`, so it's kept) |
+| 11 | Drop `class` | Redundant with `pclass` (string vs. numeric) |
 
 ---
 
-### Cells 12–13 — Histograms for `age` and `fare`
-Plots the distribution shape of each column separately.
+## Part A — Univariate Analysis: `age` & `fare` (Cells 12–19)
 
-**Data story — `age`:** The age distribution is roughly unimodal and
-centered in the young-to-middle-adult range, with the majority of
-passengers falling between about 20 and 50 years old. There's a smaller
-secondary cluster of children and infants at the low end, and the
-distribution tapers off gradually into older ages, with relatively few
-passengers above 60. This is a fairly typical bell-shaped spread for a
-passenger population that includes some traveling families but skews
-toward working-age adults.
+- **Cells 12–13 (histograms):** `age` is roughly bell-shaped, centered
+  20–50. `fare` is right-skewed — most fares are low (3rd class),
+  with a long tail of expensive 1st-class tickets.
+- **Cells 14–15 (box plots):** `age` box is compact with few outliers.
+  `fare` box is small and low, with many outlier dots above — visually
+  confirms the right-skew.
+- **Cells 16–17 (IQR outlier count):** Uses `Q1 - 1.5×IQR` /
+  `Q3 + 1.5×IQR` to flag outliers per column, computed separately since
+  `age` and `fare` have very different scales/shapes.
+  *(fill in actual counts once run)*
+- **Cells 18–19 (mean/median/mode, skew):** For `fare`: mean > median >
+  mode confirms **right-skew** — a few expensive fares pull the mean up
+  above the median/mode.
+  *(fill in actual values once run)*
 
-**Data story — `fare`:** The fare distribution is heavily right-skewed
-— most passengers paid relatively low fares (concentrated roughly in
-the £0–50 range), reflecting that the majority traveled 3rd class,
-which was the cheapest. A long tail stretches out toward much higher
-fares (£200+), driven by a smaller number of 1st-class passengers who
-paid significantly more. This shape — a tall cluster near zero with a
-thin tail extending right — is the classic signature of a right-skewed
-distribution, and it foreshadows why `fare`'s mean will likely sit
-noticeably above its median once those are computed.
+---
 
-### Cells 14–15 — Box plots for `age` and `fare`
-Visualizes each column's median, quartile spread, and flags outliers as
-individual points beyond the whiskers.
+## Part A — Bivariate Analysis (Cells 20–25)
 
-**Data story — `age`:** The `age` box plot shows a relatively compact,
-fairly symmetric box centered around the late-20s median, with whiskers
-extending to cover most of the passenger age range. Only a small number
-of points appear beyond the upper whisker — a few older passengers in
-their 60s–80s — and the box itself isn't heavily skewed in either
-direction. This lines up with the histogram: age is a well-behaved,
-roughly bell-shaped distribution with just a handful of genuine
-outliers at the older end.
+- **Cells 20–22 (survival rate via boolean masking):** by `sex`, by
+  `pclass`, and by both together (`&` combined masks). Expect: females
+  and 1st class survive at higher rates, compounding when combined.
+  *(fill in actual rates once run)*
+- **Cell 23 (correlation matrix):** Uses exactly `survived`, `pclass`,
+  `age`, `sibsp`, `parch`, `fare`. `adult_male`/`alone` excluded — both
+  are derived flags (computable from other columns), not independent data.
+- **Cell 24 (heatmap):** Visualizes the matrix with `sns.heatmap`.
+- **Cell 25 (top 2 correlations):** Ranks off-diagonal pairs by
+  **absolute value** (negative correlations count too), filtering out
+  self-correlations and duplicate pairs.
+  *(fill in actual top 2 pairs once run)*
 
-**Data story — `fare`:** The `fare` box plot tells a very different
-story — a tightly compressed box sitting near the bottom of the chart
-(reflecting how cheap most 3rd-class tickets were), with a long run of
-individual dots stretching far above the upper whisker. Each of those
-dots is a passenger who paid a fare well beyond what's typical, up to
-the most expensive 1st-class tickets. Visually, this is a textbook
-right-skewed distribution: a small, low-value box with a substantial
-number of high-value outliers pulling the range upward, consistent with
-what the fare histogram already showed.
+---
 
-### Cells 16–17 — Outlier counts for `age` and `fare` (IQR rule)
-Applies the standard IQR (interquartile range) rule to count outliers
-in each column separately.
+## Part A — Multivariate Data Story (Cells 26–29)
 
-**Why the IQR rule instead of, e.g., a fixed cutoff or z-score method:**
-The IQR rule adapts to each column's own spread rather than using an
-arbitrary fixed threshold (like "age > 70"), and unlike a z-score
-approach, it doesn't assume the data is normally distributed — which
-matters here since `fare` is visibly right-skewed, not bell-shaped.
-`Q1 - 1.5*IQR` / `Q3 + 1.5*IQR` is the conventional, widely-used
-boundary for flagging a value as unusual relative to the middle 50% of
-that column's own data.
+Four charts building one argument: **survival depended on sex, class,
+age, and family size together, not any one factor alone.**
 
-**Why bounds/outlier counts are computed separately per column, not
-together:** `age` and `fare` have completely different scales and
-distributions (age is roughly symmetric, fare is heavily right-skewed),
-so a shared threshold would be meaningless — each column needs its own
-Q1, Q3, and IQR computed independently before the rule is applied.
+1. **Bar chart** — survival rate by class × sex
+2. **Box plot** — age distribution, survived vs. not
+3. **Scatter plot** — age vs. fare, colored by survival
+4. **Heatmap** — survival rate by class × family size
+   (`family_size = sibsp + parch + 1`, created just for this chart)
 
-*(Outlier counts to be filled in from actual run output.)*
+*(Add a 2–4 sentence interpretation under each chart once run, based on
+what the actual chart shows.)*
 
-### Cell 18 — Mean, median, mode for `fare`
-Computes the three standard measures of central tendency for `fare`:
-- **Mean** — sum of all fares divided by passenger count. Sensitive to
-  extreme values, since a handful of very expensive 1st-class tickets
-  can pull it noticeably higher than what most passengers actually paid.
-- **Median** — the middle fare once all values are sorted. Not affected
-  by how extreme the highest/lowest values are, only their sorted
-  position, making it a better read on the "typical" fare.
-- **Mode** — the single most frequently occurring exact fare value.
-  `.mode()` returns a list (in case multiple values tie for most
-  common), so the first entry is taken.
+---
 
-*(Actual mean/median/mode values to be filled in from run output.)*
+## Part A — EDA Sanity Check: Z-Score Standardization (Cells 30–31)
 
-### Cell 19 — Determining skewness from mean/median/mode
-Compares the three values computed in Cell 18 to determine the shape of
-`fare`'s distribution, using the standard rule of thumb:
-- `mean > median > mode` → **right-skewed** (long tail toward high
-  values) — the mean is pulled upward by a small number of high fares
-- `mean < median < mode` → **left-skewed** (long tail toward low
-  values) — the mean is pulled downward by a small number of low fares
-- All three roughly equal → **symmetric**, no strong pull either way
+Standardizes `age`/`fare` manually (`z = (x - mean) / std`) into new
+columns (`age_zscore`, `fare_zscore`) — **originals kept untouched**.
 
-The conclusion is derived directly from the computed values with an
-`if`/`elif`/`else` check, rather than assumed in advance — it confirms
-whether the pattern already suggested by the histogram and box plot
-(fare's long tail toward expensive 1st-class fares) holds up
-numerically, and states the actual ordering as evidence.
+**Important:** this is throwaway — it does *not* feed into the modeling
+pipeline. Task 8's pipeline does its own scaling, fit only on training
+data, to avoid data leakage. This is just to show the transformation
+works (after: mean ≈ 0, std ≈ 1).
 
-*(Actual skew conclusion to be filled in from run output.)*
+*(Fill in actual before/after mean/std once run.)*
 
-## Bivariate Analysis — Survival Rates and Correlation
+---
 
-Looks at relationships *between* variables (rather than one column
-alone, as in the univariate section above): how survival rate varies
-across groups, and which numeric features move together most strongly.
-
-### Cells 20–22 — Survival rate by group (boolean masking)
-Computes survival rate — the fraction of passengers who survived —
-broken down three ways, using direct boolean masking (`df[condition]`)
-rather than `.groupby()`, to demonstrate boolean indexing explicitly:
-- **Cell 20 (by `sex`):** male vs. female survival rate
-- **Cell 21 (by `pclass`):** 1st / 2nd / 3rd class survival rate
-- **Cell 22 (by `sex` AND `pclass` together):** all six combinations
-  (e.g. female+1st-class, male+3rd-class), using `&` to combine both
-  conditions in a single mask
-
-**Why `.mean()` on `survived` gives the rate directly:** since
-`survived` is already `0`/`1`, averaging it over any filtered subset is
-mathematically identical to (count of survivors) / (total in group) —
-no separate counting step needed.
-
-**Why each condition needs parentheses when combined with `&`:** pandas
-evaluates `&` with higher precedence than `==`, so
-`df["sex"] == "female" & df["pclass"] == 1` would be parsed incorrectly
-without wrapping each comparison in its own parentheses first.
-
-*(Actual survival rates to be filled in from run output.)*
-
-### Cell 23 — Correlation matrix (6 specified columns)
-Builds a correlation matrix using exactly `survived`, `pclass`, `age`,
-`sibsp`, `parch`, `fare`.
-
-**Why `adult_male` and `alone` are excluded:** both are derived flags,
-not independently measured data — `adult_male` is fully computable from
-`sex` + `age` (and was already dropped earlier in Cell 10), and `alone`
-is fully computable from whether `sibsp` and `parch` are both zero.
-Including a column that's just a re-expression of other columns already
-in the matrix would inflate apparent correlations without adding any
-real information.
-
-**Why the 6 columns are explicitly selected (`df[corr_columns]`) rather
-than running `.corr()` on the whole DataFrame:** `.corr()` silently
-drops non-numeric columns on its own, but `alone` (boolean) would still
-be numeric-compatible and could sneak into the matrix if not excluded
-explicitly. Selecting exactly the required 6 columns first guarantees
-nothing unwanted leaks in, regardless of dtype.
-
-### Cell 24 — Heatmap of the correlation matrix
-Renders the 6×6 matrix with `sns.heatmap`, using `cmap="coolwarm"` and
-`center=0` so positive and negative correlations are visually
-distinguishable by color (red vs. blue), with `annot=True` printing the
-exact coefficient inside each cell for precise reading alongside the
-color.
-
-### Cell 25 — Two strongest correlations (by absolute value)
-Finds the two off-diagonal pairs with the largest absolute correlation
-coefficient — treating a strong negative correlation as equally
-significant as a strong positive one, since both represent a real,
-strong relationship between variables.
-
-**Why absolute value is used for ranking, not raw value:** a
-correlation of `-0.85` reflects just as strong a relationship as `+0.85`
-— only the direction differs. Ranking by raw value would incorrectly
-treat strong negative relationships as "weaker" than weak positive
-ones.
-
-**Why self-correlations and duplicate pairs are filtered out:**
-`corr_matrix.unstack()` flattens the full grid, which includes each
-variable's correlation with itself (always exactly `1.0`, meaningless
-for this ranking) and lists every pair twice (e.g. both
-`(pclass, fare)` and `(fare, pclass)`, identical values). Both are
-filtered out so the "top 2" reflects two genuinely different
-relationships, not an artifact of the matrix's symmetry.
-
-*(Actual top 2 pairs, values, and written interpretation to be filled
-in from run output.)*
-
-## Multivariate Data Story — Who Was More Likely to Survive, and Why
-
-Four charts that together build one coherent argument: **survival was
-driven by a combination of sex, class/wealth, age, and family
-circumstances — not any single factor alone.**
-
-### Cell 26 — Chart 1: Bar chart — survival rate by class and sex
-Grouped bar chart showing survival rate for each `pclass` × `sex`
-combination.
-**Interpretation:** *(to be filled in from actual bar heights)* This
-chart is the foundation of the story: it shows survival rate splitting
-sharply along both class and sex lines at once, not just one or the
-other. If female passengers survive at a much higher rate than male
-passengers within every class, and 1st class survives more than 3rd
-within both sexes, it establishes that these two factors compound
-rather than substitute for each other.
-
-### Cell 27 — Chart 2: Box plot — age distribution, survived vs. did not
-Compares the spread of `age` between passengers who survived and those
-who didn't.
-**Interpretation:** *(to be filled in from actual plot)* This adds age
-as a second axis to the story. If the "survived" box sits slightly
-lower (younger median) than the "did not survive" box, it suggests
-children and younger passengers had somewhat better odds — consistent
-with a "women and children first" boarding priority — though the
-effect is likely smaller than the class/sex split in Chart 1.
-
-### Cell 28 — Chart 3: Scatter plot — age vs. fare, colored by survival
-Plots every passenger as a point (age on x-axis, fare on y-axis),
-colored by whether they survived.
-**Interpretation:** *(to be filled in from actual scatter pattern)*
-This ties wealth (fare, a proxy for class) and age together in one
-view. If survivors (one color) cluster more toward the higher-fare
-region of the plot regardless of age, it reinforces that fare/class was
-a stronger survival driver than age alone — visually connecting Charts
-1 and 2 into a single picture.
-
-### Cell 29 — Chart 4: Heatmap — survival rate by class and family size
-A derived `family_size` column (`sibsp + parch + 1`) is created for
-this chart specifically, then pivoted against `pclass` to show survival
-rate for every class × family-size combination as a heatmap.
-**Why `family_size` instead of `sibsp`/`parch` separately:** the two
-raw counts (siblings/spouses, parents/children) are less meaningful
-individually than the total number of family members traveling
-together, which is what actually affects whether someone had help
-boarding a lifeboat or got separated in the chaos.
-**Interpretation:** *(to be filled in from actual heatmap pattern)*
-This adds a final layer the first three charts don't capture: whether
-traveling **alone** (family_size = 1) or in a **very large group**
-hurt survival odds even within the same class, compared to a small
-family (2–4 people) — testing whether class/sex/age are the whole
-story, or whether family circumstance also mattered independently.
-
-**Overall story:** Across all four charts, sex and class appear to be
-the dominant, most consistent drivers of survival, with age and family
-size acting as secondary, moderating factors that shift the odds
-further within each class/sex group rather than overriding them.
-
-*(Note: final interpretation paragraphs above should be revised to
-state what the charts actually show, once run.)*
-
-## Cells 30–31 — EDA Sanity Check: Z-Score Standardization of `age`/`fare`
-
-**Important distinction:** this is explicitly an **EDA-stage sanity
-check only** — it does not feed into the modeling pipeline. Task 8's
-modeling pipeline performs its own scaling, fit only on training data,
-to avoid data leakage from the test set. This section exists purely to
-demonstrate the standardization transformation and its effect.
-
-### Cell 30 — Standardize `age` and `fare`, before/after comparison
-Applies the z-score formula manually — `z = (x - mean) / std` — to
-`age` and `fare`, storing results in new columns (`age_zscore`,
-`fare_zscore`) rather than overwriting the originals, and prints
-mean/std before and after.
-
-**Why the original `age`/`fare` columns are preserved rather than
-overwritten:** since this transformation is explicitly a throwaway
-sanity check, overwriting the originals risks accidentally carrying
-this EDA-only standardization into later cells or into
-`02_modeling.ipynb`, which is supposed to read the original, untouched
-`age`/`fare` values and apply its own correctly-scoped scaling.
-
-**Why manual computation instead of `StandardScaler`:** the task
-allows either; computing it manually here makes the formula itself
-visible in the code, which is more transparent for an EDA sanity check
-whose whole purpose is demonstrating understanding of the
-transformation, rather than optimizing for pipeline reusability (which
-is what `StandardScaler` is actually built for, and is used properly
-later in Task 8's real pipeline).
-
-**Expected effect:** after standardization, both `age_zscore` and
-`fare_zscore` should show mean ≈ 0 and standard deviation ≈ 1 — this is
-the defining property of a z-score transformation, not something
-specific to this dataset.
-
-*(Actual before/after mean/std values to be filled in from run output.)*
-
-### Cell 31 — Overlaid before/after distribution plots
-Plots the original and standardized versions of each column on the same
-histogram (using transparency via `alpha=0.5`) to visually confirm the
-transformation: the **shape** of the distribution stays identical (z-
-score is a linear transformation — it doesn't change skew or shape),
-but the **x-axis scale** shifts so the data is now centered on 0 with
-most values roughly between -3 and +3, instead of the original raw
-units (years for age, currency for fare).
-
-### `02_modeling.ipynb` — Part B: Modeling pipeline
+## Part B — `02_modeling.ipynb`
 *(to be added)*
