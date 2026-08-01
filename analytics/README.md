@@ -196,5 +196,143 @@ numerically, and states the actual ordering as evidence.
 
 *(Actual skew conclusion to be filled in from run output.)*
 
+## Bivariate Analysis — Survival Rates and Correlation
+
+Looks at relationships *between* variables (rather than one column
+alone, as in the univariate section above): how survival rate varies
+across groups, and which numeric features move together most strongly.
+
+### Cells 20–22 — Survival rate by group (boolean masking)
+Computes survival rate — the fraction of passengers who survived —
+broken down three ways, using direct boolean masking (`df[condition]`)
+rather than `.groupby()`, to demonstrate boolean indexing explicitly:
+- **Cell 20 (by `sex`):** male vs. female survival rate
+- **Cell 21 (by `pclass`):** 1st / 2nd / 3rd class survival rate
+- **Cell 22 (by `sex` AND `pclass` together):** all six combinations
+  (e.g. female+1st-class, male+3rd-class), using `&` to combine both
+  conditions in a single mask
+
+**Why `.mean()` on `survived` gives the rate directly:** since
+`survived` is already `0`/`1`, averaging it over any filtered subset is
+mathematically identical to (count of survivors) / (total in group) —
+no separate counting step needed.
+
+**Why each condition needs parentheses when combined with `&`:** pandas
+evaluates `&` with higher precedence than `==`, so
+`df["sex"] == "female" & df["pclass"] == 1` would be parsed incorrectly
+without wrapping each comparison in its own parentheses first.
+
+*(Actual survival rates to be filled in from run output.)*
+
+### Cell 23 — Correlation matrix (6 specified columns)
+Builds a correlation matrix using exactly `survived`, `pclass`, `age`,
+`sibsp`, `parch`, `fare`.
+
+**Why `adult_male` and `alone` are excluded:** both are derived flags,
+not independently measured data — `adult_male` is fully computable from
+`sex` + `age` (and was already dropped earlier in Cell 10), and `alone`
+is fully computable from whether `sibsp` and `parch` are both zero.
+Including a column that's just a re-expression of other columns already
+in the matrix would inflate apparent correlations without adding any
+real information.
+
+**Why the 6 columns are explicitly selected (`df[corr_columns]`) rather
+than running `.corr()` on the whole DataFrame:** `.corr()` silently
+drops non-numeric columns on its own, but `alone` (boolean) would still
+be numeric-compatible and could sneak into the matrix if not excluded
+explicitly. Selecting exactly the required 6 columns first guarantees
+nothing unwanted leaks in, regardless of dtype.
+
+### Cell 24 — Heatmap of the correlation matrix
+Renders the 6×6 matrix with `sns.heatmap`, using `cmap="coolwarm"` and
+`center=0` so positive and negative correlations are visually
+distinguishable by color (red vs. blue), with `annot=True` printing the
+exact coefficient inside each cell for precise reading alongside the
+color.
+
+### Cell 25 — Two strongest correlations (by absolute value)
+Finds the two off-diagonal pairs with the largest absolute correlation
+coefficient — treating a strong negative correlation as equally
+significant as a strong positive one, since both represent a real,
+strong relationship between variables.
+
+**Why absolute value is used for ranking, not raw value:** a
+correlation of `-0.85` reflects just as strong a relationship as `+0.85`
+— only the direction differs. Ranking by raw value would incorrectly
+treat strong negative relationships as "weaker" than weak positive
+ones.
+
+**Why self-correlations and duplicate pairs are filtered out:**
+`corr_matrix.unstack()` flattens the full grid, which includes each
+variable's correlation with itself (always exactly `1.0`, meaningless
+for this ranking) and lists every pair twice (e.g. both
+`(pclass, fare)` and `(fare, pclass)`, identical values). Both are
+filtered out so the "top 2" reflects two genuinely different
+relationships, not an artifact of the matrix's symmetry.
+
+*(Actual top 2 pairs, values, and written interpretation to be filled
+in from run output.)*
+
+## Multivariate Data Story — Who Was More Likely to Survive, and Why
+
+Four charts that together build one coherent argument: **survival was
+driven by a combination of sex, class/wealth, age, and family
+circumstances — not any single factor alone.**
+
+### Cell 26 — Chart 1: Bar chart — survival rate by class and sex
+Grouped bar chart showing survival rate for each `pclass` × `sex`
+combination.
+**Interpretation:** *(to be filled in from actual bar heights)* This
+chart is the foundation of the story: it shows survival rate splitting
+sharply along both class and sex lines at once, not just one or the
+other. If female passengers survive at a much higher rate than male
+passengers within every class, and 1st class survives more than 3rd
+within both sexes, it establishes that these two factors compound
+rather than substitute for each other.
+
+### Cell 27 — Chart 2: Box plot — age distribution, survived vs. did not
+Compares the spread of `age` between passengers who survived and those
+who didn't.
+**Interpretation:** *(to be filled in from actual plot)* This adds age
+as a second axis to the story. If the "survived" box sits slightly
+lower (younger median) than the "did not survive" box, it suggests
+children and younger passengers had somewhat better odds — consistent
+with a "women and children first" boarding priority — though the
+effect is likely smaller than the class/sex split in Chart 1.
+
+### Cell 28 — Chart 3: Scatter plot — age vs. fare, colored by survival
+Plots every passenger as a point (age on x-axis, fare on y-axis),
+colored by whether they survived.
+**Interpretation:** *(to be filled in from actual scatter pattern)*
+This ties wealth (fare, a proxy for class) and age together in one
+view. If survivors (one color) cluster more toward the higher-fare
+region of the plot regardless of age, it reinforces that fare/class was
+a stronger survival driver than age alone — visually connecting Charts
+1 and 2 into a single picture.
+
+### Cell 29 — Chart 4: Heatmap — survival rate by class and family size
+A derived `family_size` column (`sibsp + parch + 1`) is created for
+this chart specifically, then pivoted against `pclass` to show survival
+rate for every class × family-size combination as a heatmap.
+**Why `family_size` instead of `sibsp`/`parch` separately:** the two
+raw counts (siblings/spouses, parents/children) are less meaningful
+individually than the total number of family members traveling
+together, which is what actually affects whether someone had help
+boarding a lifeboat or got separated in the chaos.
+**Interpretation:** *(to be filled in from actual heatmap pattern)*
+This adds a final layer the first three charts don't capture: whether
+traveling **alone** (family_size = 1) or in a **very large group**
+hurt survival odds even within the same class, compared to a small
+family (2–4 people) — testing whether class/sex/age are the whole
+story, or whether family circumstance also mattered independently.
+
+**Overall story:** Across all four charts, sex and class appear to be
+the dominant, most consistent drivers of survival, with age and family
+size acting as secondary, moderating factors that shift the odds
+further within each class/sex group rather than overriding them.
+
+*(Note: final interpretation paragraphs above should be revised to
+state what the charts actually show, once run.)*
+
 ### `02_modeling.ipynb` — Part B: Modeling pipeline
 *(to be added)*
