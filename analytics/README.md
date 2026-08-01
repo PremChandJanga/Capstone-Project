@@ -334,5 +334,50 @@ further within each class/sex group rather than overriding them.
 *(Note: final interpretation paragraphs above should be revised to
 state what the charts actually show, once run.)*
 
+## Cells 30–31 — EDA Sanity Check: Z-Score Standardization of `age`/`fare`
+
+**Important distinction:** this is explicitly an **EDA-stage sanity
+check only** — it does not feed into the modeling pipeline. Task 8's
+modeling pipeline performs its own scaling, fit only on training data,
+to avoid data leakage from the test set. This section exists purely to
+demonstrate the standardization transformation and its effect.
+
+### Cell 30 — Standardize `age` and `fare`, before/after comparison
+Applies the z-score formula manually — `z = (x - mean) / std` — to
+`age` and `fare`, storing results in new columns (`age_zscore`,
+`fare_zscore`) rather than overwriting the originals, and prints
+mean/std before and after.
+
+**Why the original `age`/`fare` columns are preserved rather than
+overwritten:** since this transformation is explicitly a throwaway
+sanity check, overwriting the originals risks accidentally carrying
+this EDA-only standardization into later cells or into
+`02_modeling.ipynb`, which is supposed to read the original, untouched
+`age`/`fare` values and apply its own correctly-scoped scaling.
+
+**Why manual computation instead of `StandardScaler`:** the task
+allows either; computing it manually here makes the formula itself
+visible in the code, which is more transparent for an EDA sanity check
+whose whole purpose is demonstrating understanding of the
+transformation, rather than optimizing for pipeline reusability (which
+is what `StandardScaler` is actually built for, and is used properly
+later in Task 8's real pipeline).
+
+**Expected effect:** after standardization, both `age_zscore` and
+`fare_zscore` should show mean ≈ 0 and standard deviation ≈ 1 — this is
+the defining property of a z-score transformation, not something
+specific to this dataset.
+
+*(Actual before/after mean/std values to be filled in from run output.)*
+
+### Cell 31 — Overlaid before/after distribution plots
+Plots the original and standardized versions of each column on the same
+histogram (using transparency via `alpha=0.5`) to visually confirm the
+transformation: the **shape** of the distribution stays identical (z-
+score is a linear transformation — it doesn't change skew or shape),
+but the **x-axis scale** shifts so the data is now centered on 0 with
+most values roughly between -3 and +3, instead of the original raw
+units (years for age, currency for fare).
+
 ### `02_modeling.ipynb` — Part B: Modeling pipeline
 *(to be added)*
