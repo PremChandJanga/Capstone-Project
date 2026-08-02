@@ -12,9 +12,10 @@ from the network again.
 ```
 analytics/
 ├── notebooks/
-│   ├── 01_eda.ipynb       # Part A: cleaning + EDA
-│   └── 02_modeling.ipynb  # Part B: modeling (to be added)
-├── titanic.csv             # offline fallback of the raw load
+│   ├── 01_eda.ipynb        # Part A: cleaning + EDA
+│   ├── 02_modeling.ipynb   # Part B: modeling (to be added)
+│   ├── titanic.csv          # offline fallback of the raw load
+│   └── titanic_clean.csv    # cleaned + encoded dataset for modeling
 └── README.md
 ```
 
@@ -103,6 +104,29 @@ works (after: mean ≈ 0, std ≈ 1).
 *(Fill in actual before/after mean/std once run.)*
 
 ---
+
+## Categorical Encoding (Cells 32–33)
+
+To prime the data for model training, all category columns were
+converted into numerical columns, since models require numeric input.
+
+- **`sex`** (2 values) → mapped directly to `0`/`1`
+- **`embarked`** (S/C/Q, unordered) → one-hot encoded into
+  `embarked_S`, `embarked_C`, `embarked_Q`
+- **`who`** (man/woman/child, unordered) → one-hot encoded into
+  `who_man`, `who_woman`, `who_child`
+- **`alone`** (already boolean) → converted to `0`/`1` with `.astype(int)`
+- **`pclass`** left as-is — already numeric and genuinely ordinal
+  (1st > 2nd > 3rd), so it doesn't need one-hot encoding like the
+  unordered categories above
+
+**Why one-hot instead of simple number mapping for `embarked`/`who`:**
+mapping categories to arbitrary numbers (e.g. S=1, C=2, Q=3) would
+falsely imply a ranking between them. One-hot encoding avoids that by
+giving each category its own independent 0/1 column.
+
+The updated dataset (all columns numeric) is saved back to
+`titanic_clean.csv` for use in `02_modeling.ipynb`.
 
 ## Part B — `02_modeling.ipynb`
 *(to be added)*
