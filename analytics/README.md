@@ -129,4 +129,34 @@ The updated dataset (all columns numeric) is saved back to
 `titanic_clean.csv` for use in `02_modeling.ipynb`.
 
 ## Part B — `02_modeling.ipynb`
-*(to be added)*
+
+Reads the cleaned, encoded dataset saved by `01_eda.ipynb`
+(`titanic_clean.csv`) and continues into the modeling pipeline. No
+second `sns.load_dataset('titanic')` call — everything here builds on
+the one load from Part A.
+
+### Cell 1 — Load cleaned dataset
+Loads `titanic_clean.csv` (already cleaned + encoded to numeric in Part
+A) as the starting point for modeling.
+
+### Cell 2 — Stratified train/test split
+Splits data into train (80%) and test (20%) sets using
+`train_test_split(..., stratify=y)`, with `survived` as the
+classification target.
+
+**Why a stratified split is necessary here:** `survived` is an
+imbalanced target — roughly 38% survived vs. 62% did not (seen in
+Task 1's profiling). A plain random split risks landing on a different
+survival rate in train vs. test purely by chance, especially on a
+dataset this size (~891 rows, further reduced by the split). That
+mismatch would mean the model trains on one class balance but gets
+evaluated on a different one, making test performance less reliable to
+interpret. `stratify=y` forces train and test to preserve the same
+survival rate as the full dataset.
+
+**Why `random_state=42`:** makes the split reproducible — same rows in
+train/test every time the cell runs, instead of a different random
+split on each run.
+
+*(Actual train/test shapes and survival rates to be filled in from run
+output.)*
