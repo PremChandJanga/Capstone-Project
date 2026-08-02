@@ -105,29 +105,6 @@ works (after: mean ≈ 0, std ≈ 1).
 
 ---
 
-## Categorical Encoding (Cells 32–33)
-
-To prime the data for model training, all category columns were
-converted into numerical columns, since models require numeric input.
-
-- **`sex`** (2 values) → mapped directly to `0`/`1`
-- **`embarked`** (S/C/Q, unordered) → one-hot encoded into
-  `embarked_S`, `embarked_C`, `embarked_Q`
-- **`who`** (man/woman/child, unordered) → one-hot encoded into
-  `who_man`, `who_woman`, `who_child`
-- **`alone`** (already boolean) → converted to `0`/`1` with `.astype(int)`
-- **`pclass`** left as-is — already numeric and genuinely ordinal
-  (1st > 2nd > 3rd), so it doesn't need one-hot encoding like the
-  unordered categories above
-
-**Why one-hot instead of simple number mapping for `embarked`/`who`:**
-mapping categories to arbitrary numbers (e.g. S=1, C=2, Q=3) would
-falsely imply a ranking between them. One-hot encoding avoids that by
-giving each category its own independent 0/1 column.
-
-The updated dataset (all columns numeric) is saved back to
-`titanic_clean.csv` for use in `02_modeling.ipynb`.
-
 ## Part B — `02_modeling.ipynb`
 
 Reads the cleaned, encoded dataset saved by `01_eda.ipynb`
@@ -160,3 +137,27 @@ split on each run.
 
 *(Actual train/test shapes and survival rates to be filled in from run
 output.)*
+
+### Cell 3 — Encode categorical columns to numeric
+Converts remaining category columns to numeric, applied **after** the
+train/test split (not in `01_eda.ipynb`), so encoding is scoped to the
+modeling pipeline rather than baked into the shared cleaned dataset.
+
+- **`sex`** (2 values) → mapped directly to `0`/`1`
+- **`embarked`** (S/C/Q, unordered) → one-hot encoded
+- **`who`** (man/woman/child, unordered) → one-hot encoded
+- **`alone`** (already boolean) → converted to `0`/`1`
+- **`pclass`** left as-is — already numeric and genuinely ordinal
+
+**Why one-hot instead of simple number mapping for `embarked`/`who`:**
+mapping categories to arbitrary numbers (e.g. S=1, C=2, Q=3) would
+falsely imply a ranking between them that doesn't exist.
+
+**Why encoding happens here, after the split, rather than in
+`01_eda.ipynb` before it:** keeps `titanic_clean.csv` as a
+general-purpose cleaned dataset (still human-readable categories),
+with encoding scoped specifically to this modeling pipeline. It also
+avoids a subtle risk: one-hot encoding the *full* dataset before
+splitting is usually fine here since all categories appear in both
+splits, but doing it after split-time in the pipeline is the safer
+default habit, consistent with how scaling is handled in Task 6/Task 8.
