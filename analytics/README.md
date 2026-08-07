@@ -12,10 +12,11 @@ from the network again.
 ```
 analytics/
 ├── notebooks/
-│   ├── 01_eda.ipynb        # Part A: cleaning + EDA
-│   ├── 02_modeling.ipynb   # Part B: modeling (to be added)
-│   ├── titanic.csv          # offline fallback of the raw load
-│   └── titanic_clean.csv    # cleaned + encoded dataset for modeling
+│   ├── 01_eda.ipynb                    # Part A: cleaning + EDA
+│   ├── 02_modeling.ipynb               # Part B: modeling
+│   └── titanic_survival_pipeline.joblib # saved complete pipeline
+├── titanic.csv                          # offline fallback of the raw load
+├── titanic_clean.csv                    # cleaned dataset for modeling
 └── README.md
 ```
 
@@ -113,8 +114,7 @@ second `sns.load_dataset('titanic')` call — everything here builds on
 the one load from Part A.
 
 ### Cell 1 — Load cleaned dataset
-Loads `titanic_clean.csv` (already cleaned + encoded to numeric in Part
-A) as the starting point for modeling.
+Loads `titanic_clean.csv` (already cleaned in Part A) as the starting point for modeling.
 
 ### Cell 2 — Stratified train/test split
 Splits data into train (80%) and test (20%) sets using
