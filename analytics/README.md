@@ -291,10 +291,37 @@ columns would visually imply they're comparable numbers, which they
 are not. Two clearly labeled tables — one per model type — satisfies
 "side by side" without misrepresenting what each number measures.
 
+**Actual results:**
+
+Classification Models — Predicting Survival
+
+| Model | Accuracy | Precision | Recall | F1 Score | AUC |
+|---|---|---|---|---|---|
+| Logistic Regression | **0.8258** | **0.8136** | 0.7059 | **0.7559** | **0.8670** |
+| Decision Tree | 0.7865 | 0.7206 | **0.7206** | 0.7206 | 0.7691 |
+| Random Forest | 0.7921 | 0.7385 | 0.7059 | 0.7218 | 0.8205 |
+
+Regression Model — Predicting Fare
+
+| Model | MAE | RMSE | R² | Adjusted R² |
+|---|---|---|---|---|
+| Linear Regression (fare) | 21.368 | 42.421 | 0.3255 | 0.2894 |
+
 **Final Recommendation:**
-*(3–5 sentence written recommendation on which classifier to deploy and
-why, referencing specific metric values, to be added once actual
-results are available.)*
+Logistic Regression is the recommended model for deployment. It
+achieved the highest accuracy (0.8258), precision (0.8136), F1 score
+(0.7559), and AUC (0.8670) of the three classifiers, outperforming both
+Random Forest and Decision Tree on nearly every metric. Its recall
+(0.7059) is only marginally behind Decision Tree's (0.7206), a
+negligible trade-off given Logistic Regression's clear advantage
+everywhere else — notably its precision, which is roughly 7–9 points
+higher than the other two, meaning far fewer false-positive survival
+predictions. Beyond raw performance, Logistic Regression is also
+simpler to interpret and less prone to overfitting than a single
+Decision Tree, making it a more stable and explainable choice for a
+production setting. For these reasons — consistently strongest metrics
+plus practical interpretability — Logistic Regression is the model I
+would deploy.
 
 ### Cell 3 — Encode categorical columns to numeric
 Converts remaining category columns to numeric, applied **after** the
