@@ -135,8 +135,49 @@ survival rate as the full dataset.
 train/test every time the cell runs, instead of a different random
 split on each run.
 
-*(Actual train/test shapes and survival rates to be filled in from run
-output.)*
+### Cells 5–6 — Train three classifiers + render Decision Tree
+Trains **Logistic Regression**, **Decision Tree**, and **Random
+Forest** on the same processed train split (`X_train_processed`,
+`y_train`). The Decision Tree is additionally rendered with
+`plot_tree`, labeling feature names and class names
+(`"Did Not Survive"` / `"Survived"`) for readability.
+
+- `max_iter=1000` on Logistic Regression: the default (100) can fail to
+  converge on this dataset/feature set; raising it just gives the
+  optimizer more room to settle, without changing its approach.
+- `random_state=42` on all three: keeps each model's internal
+  randomness (tree splits, forest bootstrap sampling) reproducible.
+
+### Cells 7–9 — Evaluate all three models (confusion matrix, metrics, ROC/AUC)
+Computes accuracy, precision, recall, F1, and AUC for each model on the
+test set, presented as one comparison table; confusion matrices shown
+side by side (3 subplots); ROC curves overlaid on a single shared plot
+for direct visual comparison.
+
+**Why AUC uses `predict_proba` instead of `predict`:** AUC measures
+ranking quality across *all* possible thresholds, not just the default
+0.5 cutoff that `.predict()` applies — this requires the model's raw
+probability scores.
+
+**Result — AUC comparison:**
+
+| Model | AUC |
+|---|---|
+| Logistic Regression | **0.87** |
+| Random Forest | 0.82 |
+| Decision Tree | 0.77 |
+
+**Interpretation:** Logistic Regression has the highest AUC and its ROC
+curve sits closest to the top-left corner across most of the plot,
+meaning it's best at ranking survivors above non-survivors regardless
+of threshold. This doesn't automatically make it "the best model" in
+every sense — accuracy/precision/recall at the default threshold could
+tell a different story for a specific use case — but specifically for
+ranking quality (what AUC measures), it's the clear winner of the
+three.
+
+*(Full accuracy/precision/recall/F1 table to be filled in from actual
+run output.)*
 
 ### Cell 3 — Encode categorical columns to numeric
 Converts remaining category columns to numeric, applied **after** the
