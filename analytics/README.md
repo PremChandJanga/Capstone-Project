@@ -210,9 +210,29 @@ untouched, consistent with the fit-on-train-only rule from Task 8.
 
 **Result:**
 
-*(Class balance and precision/recall/F1 comparison table to be filled
-in from actual run output, along with a short written conclusion on
-which strategy worked best and why.)*
+Training set class counts before SMOTE: `{0: 439, 1: 272}` (imbalanced).
+After SMOTE: `{0: 439, 1: 439}` (perfectly balanced via synthetic
+minority samples).
+
+| Variant | Precision | Recall | F1 Score |
+|---|---|---|---|
+| (a) Baseline | 0.8136 | 0.7059 | 0.7559 |
+| (b) class_weight=balanced | 0.7714 | **0.7941** | **0.7826** |
+| (c) SMOTE (train only) | 0.7727 | 0.7500 | 0.7612 |
+
+**Conclusion:** `class_weight='balanced'` worked best overall — it
+achieved the highest recall (0.7941) and highest F1 score (0.7826) of
+the three variants, meaning it catches more true survivors than either
+the baseline or SMOTE, while still keeping a reasonable precision.
+SMOTE improved recall over the baseline too (0.75 vs 0.71) but not as
+much as class weighting, despite doing more work (generating synthetic
+data) to get there. The baseline has the highest precision (0.8136) but
+the lowest recall — it's more conservative about predicting survival,
+which means it misses more actual survivors. Since correctly identifying
+survivors (recall) is arguably the more important goal for this kind of
+problem, `class_weight='balanced'` is the preferred strategy: it
+achieves this without the added complexity and risk of data leakage
+that comes with resampling techniques like SMOTE.
 
 ### Cell 15 — Hyperparameter Tuning (GridSearchCV on Random Forest)
 Runs `GridSearchCV` over Random Forest's `n_estimators`, `max_depth`,
@@ -236,8 +256,17 @@ produces a meaningful `oob_score_`.
 **Why `n_jobs=-1`:** uses all available CPU cores, since the grid tests
 `3 × 4 × 2 = 24` parameter combinations × 5 CV folds = 120 model fits.
 
-*(Best parameter combination and OOB score to be filled in from actual
-run output.)*
+**Result:**
+
+Best parameter combination: `{'max_depth': 5, 'max_features': 'sqrt', 'n_estimators': 300}`
+Best cross-validation accuracy: **0.8242**
+Out-of-bag (OOB) score of best estimator: **0.8284**
+
+The OOB score (0.8284) closely tracks the cross-validation accuracy
+(0.8242), which is a good sanity check — both estimate generalization
+performance independently (OOB from unused bootstrap samples,
+cross-validation from held-out folds), and their agreement suggests the
+tuned Random Forest isn't overfitting to the training data.
 
 ### Cells 16–18 — Regression Side-Task: Predicting `fare`
 Using the same dataset, predicts `fare` from the other available
@@ -273,8 +302,34 @@ back in Task 3's univariate analysis), this pattern is expected: errors
 on a handful of very expensive tickets are likely much larger and more
 variable than errors on the many cheap tickets.
 
-*(Actual MAE/RMSE/R²/Adjusted R² values, residual plot description, and
-written heteroscedasticity conclusion to be filled in from run output.)*
+**Result:**
+
+| Metric | Value |
+|---|---|
+| MAE | 21.368 |
+| RMSE | 42.421 |
+| R² | 0.3255 |
+| Adjusted R² | 0.2894 |
+
+RMSE (42.4) is roughly double MAE (21.4) — a strong sign that a
+relatively small number of predictions are very wrong, consistent with
+`fare`'s heavy right-skew pulling large errors on the few expensive
+tickets. R² of 0.33 means the model explains only about a third of the
+variance in fare — the other numeric/encoded features (class, age,
+family size, etc.) capture some of what drives fare, but far from all
+of it, since a linear model can't fully capture the sharp jump between
+fare tiers.
+
+**Heteroscedasticity conclusion:** Yes, the residual plot shows clear
+heteroscedasticity. Residuals stay small and tightly clustered near
+zero for low predicted fares, then fan out into a wide, funnel-shaped
+spread as predicted fare increases — the model's errors on expensive
+1st-class tickets are far larger and more variable than its errors on
+cheap 3rd-class tickets. This is expected given `fare`'s right-skewed
+distribution (established in Task 3) and confirms that a plain linear
+regression isn't fully appropriate for this target without further
+transformation (e.g. predicting log(fare) instead of raw fare would
+likely reduce this effect).
 
 ### Cell 19 — Final Model Comparison Table
 Presents the three classifiers' metrics (accuracy, precision, recall,
@@ -323,26 +378,37 @@ production setting. For these reasons — consistently strongest metrics
 plus practical interpretability — Logistic Regression is the model I
 would deploy.
 
-### Cell 3 — Encode categorical columns to numeric
-Converts remaining category columns to numeric, applied **after** the
-train/test split (not in `01_eda.ipynb`), so encoding is scoped to the
-modeling pipeline rather than baked into the shared cleaned dataset.
+### Cell 15 — Best-Performing Complete Pipeline (Save & Reload)
+Saves the best-performing model (Logistic Regression) together with
+its full preprocessing (imputer + encoder + scaler) as **one combined
+`Pipeline` object**, so the saved artifact works end-to-end on raw,
+unprocessed new data — not just the bare classifier alone.
 
-- **`sex`** (2 values) → mapped directly to `0`/`1`
-- **`embarked`** (S/C/Q, unordered) → one-hot encoded
-- **`who`** (man/woman/child, unordered) → one-hot encoded
-- **`alone`** (already boolean) → converted to `0`/`1`
-- **`pclass`** left as-is — already numeric and genuinely ordinal
+**Why the entire `Pipeline` is saved, not just the classifier:** if
+only the bare model were saved, anyone using it later would need to
+manually reproduce every preprocessing step (imputation, exact
+encoding scheme, scaler parameters) themselves before predicting — easy
+to get wrong or inconsistent with training. Saving the full pipeline
+means `.predict()` on new raw data does everything correctly and
+automatically inside one object.
 
-**Why one-hot instead of simple number mapping for `embarked`/`who`:**
-mapping categories to arbitrary numbers (e.g. S=1, C=2, Q=3) would
-falsely imply a ranking between them that doesn't exist.
+**Why it's trained fresh on `titanic_clean.csv` reloaded from disk,
+not on this notebook's already-encoded `df`:** the whole point is that
+the pipeline's own `ColumnTransformer` does the encoding internally, so
+it must be fit starting from genuinely raw category values (e.g.
+`"female"`, not a pre-encoded number) — otherwise the saved pipeline
+wouldn't actually work on true raw input.
 
-**Why encoding happens here, after the split, rather than in
-`01_eda.ipynb` before it:** keeps `titanic_clean.csv` as a
-general-purpose cleaned dataset (still human-readable categories),
-with encoding scoped specifically to this modeling pipeline. It also
-avoids a subtle risk: one-hot encoding the *full* dataset before
-splitting is usually fine here since all categories appear in both
-splits, but doing it after split-time in the pipeline is the safer
-default habit, consistent with how scaling is handled in Task 6/Task 8.
+**Why `OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)`:**
+makes the pipeline robust to a category it never saw during training
+(e.g. a user typo) — it encodes the unknown value as `-1` instead of
+crashing, so a single bad input field doesn't break the whole pipeline.
+
+**Result:** Full pipeline test accuracy: **0.8146**, closely matching
+Logistic Regression's earlier standalone test accuracy (0.8258),
+confirming the end-to-end pipeline performs consistently with the
+manually-preprocessed version used earlier in this notebook. Reloading
+the saved `.joblib` file and predicting on a fresh raw sample (e.g. a
+1st-class woman, age 29, fare 100) correctly reproduces the same
+prediction and probability as the freshly-trained pipeline, confirming
+nothing was lost in the save/load process.
