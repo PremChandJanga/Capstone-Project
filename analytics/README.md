@@ -276,6 +276,26 @@ variable than errors on the many cheap tickets.
 *(Actual MAE/RMSE/R²/Adjusted R² values, residual plot description, and
 written heteroscedasticity conclusion to be filled in from run output.)*
 
+### Cell 19 — Final Model Comparison Table
+Presents the three classifiers' metrics (accuracy, precision, recall,
+F1, AUC) and the regression model's metrics (MAE, RMSE, R², Adjusted
+R²) as **two distinct tables**, not merged into shared columns.
+
+**Why classification and regression metrics are kept as separate
+tables rather than one combined table:** classification metrics
+(accuracy, precision, recall, F1, AUC) are bounded 0–1 scores where
+higher is always better, while regression metrics (MAE, RMSE, R²) are
+on entirely different scales — MAE/RMSE are in fare's own units and
+lower is better, R² can even go negative. Presenting them under shared
+columns would visually imply they're comparable numbers, which they
+are not. Two clearly labeled tables — one per model type — satisfies
+"side by side" without misrepresenting what each number measures.
+
+**Final Recommendation:**
+*(3–5 sentence written recommendation on which classifier to deploy and
+why, referencing specific metric values, to be added once actual
+results are available.)*
+
 ### Cell 3 — Encode categorical columns to numeric
 Converts remaining category columns to numeric, applied **after** the
 train/test split (not in `01_eda.ipynb`), so encoding is scoped to the
