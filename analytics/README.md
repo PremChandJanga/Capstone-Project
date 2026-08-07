@@ -179,6 +179,41 @@ three.
 *(Full accuracy/precision/recall/F1 table to be filled in from actual
 run output.)*
 
+### Cells 10–14 — Imbalance Handling Comparison
+Reports the `survived`/not-survived class balance, then retrains
+Logistic Regression three ways to compare strategies for handling that
+imbalance.
+
+**Why Logistic Regression specifically:** the task allows any one of
+the three models; Logistic Regression is used here since it already
+showed the strongest AUC in the earlier model comparison, making it the
+most relevant model to fine-tune further.
+
+- **(a) Baseline** — no imbalance handling at all. Trained on the
+  original imbalanced training data as-is; every other variant is
+  compared against this.
+- **(b) `class_weight='balanced'`** — doesn't touch the data. Instead
+  changes the *loss function* so misclassifying the minority class
+  (survivors) is penalized more heavily during training, based on
+  class frequency.
+- **(c) SMOTE oversampling** — generates *synthetic* minority-class
+  rows by interpolating between real minority examples, rather than
+  duplicating existing rows.
+
+**Why SMOTE is applied only to the training fold
+(`smote.fit_resample(X_train_processed, y_train)`), never to test
+data:** if applied before the split, or directly to test data,
+synthetic points generated near real test rows could leak test-set
+information into training — inflating apparent performance. Restricting
+it strictly to the training fold keeps the test set 100% real and
+untouched, consistent with the fit-on-train-only rule from Task 8.
+
+**Result:**
+
+*(Class balance and precision/recall/F1 comparison table to be filled
+in from actual run output, along with a short written conclusion on
+which strategy worked best and why.)*
+
 ### Cell 3 — Encode categorical columns to numeric
 Converts remaining category columns to numeric, applied **after** the
 train/test split (not in `01_eda.ipynb`), so encoding is scoped to the
