@@ -214,6 +214,68 @@ untouched, consistent with the fit-on-train-only rule from Task 8.
 in from actual run output, along with a short written conclusion on
 which strategy worked best and why.)*
 
+### Cell 15 — Hyperparameter Tuning (GridSearchCV on Random Forest)
+Runs `GridSearchCV` over Random Forest's `n_estimators`, `max_depth`,
+and `max_features`, reporting the best parameter combination and its
+out-of-bag (OOB) score.
+
+**Why `oob_score=True` is passed at construction
+(`RandomForestClassifier(oob_score=True, ...)`), not set afterward:**
+OOB scoring happens *during* training — each tree is evaluated on the
+portion of data its own bootstrap sample excluded. This tracking is
+only set up if the flag is enabled before `.fit()` runs; setting it
+after fitting has no effect.
+
+**Why the OOB score is read from `grid_search.best_estimator_`, not the
+base estimator:** `GridSearchCV` internally clones the base estimator
+for every parameter combination it tests, but `best_estimator_` is the
+one specific model — built with the winning parameters — that gets
+refit on the full training set afterward. That final refit is what
+produces a meaningful `oob_score_`.
+
+**Why `n_jobs=-1`:** uses all available CPU cores, since the grid tests
+`3 × 4 × 2 = 24` parameter combinations × 5 CV folds = 120 model fits.
+
+*(Best parameter combination and OOB score to be filled in from actual
+run output.)*
+
+### Cells 16–18 — Regression Side-Task: Predicting `fare`
+Using the same dataset, predicts `fare` from the other available
+features with a multivariate linear regression — a separate side-task
+from the survival classification above.
+
+**Why a separate train/test split (`X_reg_train`/`X_reg_test`) instead
+of reusing the earlier `X_train`/`X_test`:** the target changes from
+`survived` to `fare`, and `survived` itself becomes a predictor here —
+this is a genuinely different modeling problem, so it gets its own
+split rather than reusing the classification task's split.
+
+**Metrics reported:**
+- **MAE** — average error in the same units as fare (directly
+  interpretable: "predictions are off by about £X on average")
+- **RMSE** — penalizes large errors more heavily than MAE; expected to
+  be noticeably larger than MAE here given fare's right-skew (a few
+  very expensive tickets are harder to predict accurately, and RMSE
+  reflects that more than MAE does)
+- **R²** — proportion of fare's variance explained by the model
+- **Adjusted R²** — same as R², but penalized for the number of
+  predictors used, so it doesn't automatically reward adding more
+  features
+
+**Residual plot:** plots predicted fare (x-axis) against residuals
+(actual − predicted, y-axis), with a reference line at 0.
+**Why this checks for heteroscedasticity:** if residuals fan out into a
+funnel/cone shape — tight near low predicted fares, wide near high
+predicted fares — rather than a consistent random band around zero
+across the whole range, that's heteroscedasticity (non-random,
+uneven spread of errors). Given `fare`'s heavy right-skew (established
+back in Task 3's univariate analysis), this pattern is expected: errors
+on a handful of very expensive tickets are likely much larger and more
+variable than errors on the many cheap tickets.
+
+*(Actual MAE/RMSE/R²/Adjusted R² values, residual plot description, and
+written heteroscedasticity conclusion to be filled in from run output.)*
+
 ### Cell 3 — Encode categorical columns to numeric
 Converts remaining category columns to numeric, applied **after** the
 train/test split (not in `01_eda.ipynb`), so encoding is scoped to the
