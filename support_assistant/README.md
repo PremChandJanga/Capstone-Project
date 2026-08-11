@@ -21,9 +21,9 @@ support_assistant/
 ├── ingest.py
 ├── prompts.py
 ├── retriever.py
+├── mock_llm.py
 ├── graph.py
 ├── schemas.py
-├── mock_llm.py
 ├── app.py
 ├── requirements.txt
 ├── Dockerfile
@@ -87,6 +87,14 @@ will later be used to retrieve relevant policy information.
 **Why?** The ingestion script can be run multiple times without creating
 duplicate document IDs.
 
+### Why `chroma_db/` is not committed
+
+The ChromaDB directory is generated locally from the source documents and
+`ingest.py`. It can therefore be recreated whenever required.
+
+Keeping it in `.gitignore` avoids committing generated database files while
+keeping the source needed to reproduce the database.
+
 ### Task 1 flow
 
 ```text
@@ -99,6 +107,21 @@ all-MiniLM-L6-v2
 384D Embeddings
     ↓
 ChromaDB
+```
+
+### How to run
+
+```powershell
+cd "D:\Projects\Capstone project\support_assistant"
+python .\ingest.py
+```
+
+Expected result:
+
+```text
+Loaded 8 documents.
+Documents stored: 8
+Embedding dimension: 384
 ```
 
 ### Task 1 status
@@ -206,17 +229,17 @@ unnecessary explanations.
 
 `prompts.py` contains a built-in test block.
 
-Running:
+Run:
 
 ```powershell
 cd "D:\Projects\Capstone project\support_assistant"
 python .\prompts.py
 ```
 
-formats a sample context and question and prints the generated system
-prompt and user message.
+The test formats a sample context and question and prints the generated
+system prompt and user message.
 
-The test confirms that:
+The test confirms:
 
 ```text
 Context + Question
@@ -226,10 +249,8 @@ Prompt Template
 Formatted Messages
 ```
 
-are working correctly.
-
 No LLM is required for this test because Task 2 only validates the prompt
-template. LLM integration will be handled in a later task.
+template. LLM integration is handled in a later task.
 
 ### Task 2 status
 
@@ -247,13 +268,150 @@ template. LLM integration will be handled in a later task.
 
 ---
 
+## Task 3 — LangGraph Workflow, Retrieval & Mock LLM
+
+### What it does
+
+Connects the ChromaDB knowledge base to a LangGraph workflow.
+
+```text
+User Question
+      ↓
+Retrieve relevant documents
+      ↓
+Build context
+      ↓
+MOCK_LLM
+      ↓
+Answer
+```
+
+### Retrieval
+
+`retriever.py` converts the user question into an embedding and searches
+the `zepto_support_docs` ChromaDB collection.
+
+The top 3 relevant documents are returned.
+
+**Why top 3?** The assistant needs the most relevant policy information,
+not the complete document collection. Limiting the results reduces
+irrelevant context while still providing multiple relevant sources.
+
+### Why separate retrieval from the graph?
+
+Retrieval is kept in `retriever.py`, while workflow logic is kept in
+`graph.py`.
+
+This separation makes the application easier to maintain and allows the
+retrieval strategy to be changed without rewriting the workflow.
+
+### LangGraph
+
+The workflow contains two nodes:
+
+```text
+START
+  ↓
+retrieve
+  ↓
+generate
+  ↓
+END
+```
+
+The `retrieve` node gets relevant policy documents from ChromaDB.
+
+The `generate` node receives the question and retrieved context and
+passes them to the Mock LLM.
+
+**Why LangGraph?** It provides an explicit state-based workflow that can
+later be extended with routing, additional nodes, and different execution
+paths.
+
+### Mock LLM
+
+`mock_llm.py` provides a deterministic local replacement for a real LLM.
+
+**Why use a Mock LLM?** It allows the complete workflow to be tested
+without an external API key, network dependency, or model cost.
+
+The Mock LLM is only used to verify that the generation stage of the
+workflow is reached. It is not intended to provide the final intelligent
+answer.
+
+### Current limitation
+
+The current Mock LLM returns a deterministic test response instead of
+actually generating an answer from the retrieved context.
+
+For example, the workflow currently produces:
+
+```text
+MOCK_LLM: Based on the retrieved Zepto policy information, the answer
+to your question is provided by the retrieved context.
+```
+
+The retrieved policy information is successfully available, but the Mock
+LLM does not yet use that information to compose a context-grounded
+answer.
+
+This will be corrected before Task 3 is considered fully complete.
+
+### Testing
+
+Run the retrieval test:
+
+```powershell
+cd "D:\Projects\Capstone project\support_assistant"
+python .\retriever.py
+```
+
+Run the Mock LLM test:
+
+```powershell
+python .\mock_llm.py
+```
+
+Run the complete LangGraph workflow:
+
+```powershell
+python .\graph.py
+```
+
+For example:
+
+```text
+Question:
+How long does Zepto delivery take?
+```
+
+The retrieval stage should return relevant policy documents, including the
+delivery policy when appropriate.
+
+### Task 3 status
+
+- [x] Create ChromaDB retriever
+- [x] Generate query embeddings
+- [x] Retrieve top 3 relevant documents
+- [x] Create LangGraph state
+- [x] Add retrieval node
+- [x] Add generation node
+- [x] Add deterministic Mock LLM
+- [x] Connect LangGraph nodes
+- [x] Test retrieval
+- [x] Test complete workflow
+- [ ] Make Mock LLM produce a context-grounded answer
+- [ ] Final Task 3 validation
+
+---
+
 ## Module 3 — Task Progress
 
 | Task | Component | Status |
 |---|---|---|
 | Task 1 | Document ingestion, embeddings & ChromaDB | Completed |
 | Task 2 | Structured prompt template | Completed |
-| Task 3 | LangGraph workflow & retrieval | Pending |
+| Task 3 | LangGraph workflow & retrieval | In Progress |
 | Task 4 | Structured Pydantic output | Pending |
 | Task 5 | FastAPI `/ask` endpoint | Pending |
 | Task 6 | Docker packaging | Pending |
