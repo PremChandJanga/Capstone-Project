@@ -1,8 +1,8 @@
 # Module 3 — Support Assistant (`/support_assistant`)
 
 This module builds a Zepto support assistant using a local RAG pipeline.
-It prepares Zepto policy documents for semantic retrieval and later connects
-that knowledge base to LangGraph, an LLM, structured output, and FastAPI.
+It prepares Zepto policy documents for semantic retrieval and connects
+that knowledge base to LangGraph, structured output, and FastAPI.
 
 **Pipeline:** `documents → chunking → embeddings → ChromaDB → retrieval → generation → API`
 
@@ -114,14 +114,6 @@ ChromaDB
 ```powershell
 cd "D:\Projects\Capstone project\support_assistant"
 python .\ingest.py
-```
-
-Expected result:
-
-```text
-Loaded 8 documents.
-Documents stored: 8
-Embedding dimension: 384
 ```
 
 ### Task 1 status
@@ -239,18 +231,8 @@ python .\prompts.py
 The test formats a sample context and question and prints the generated
 system prompt and user message.
 
-The test confirms:
-
-```text
-Context + Question
-       ↓
-Prompt Template
-       ↓
-Formatted Messages
-```
-
 No LLM is required for this test because Task 2 only validates the prompt
-template. LLM integration is handled in a later task.
+template.
 
 ### Task 2 status
 
@@ -340,22 +322,12 @@ is reached.
 
 ### Testing
 
-Run the retrieval test:
+Run:
 
 ```powershell
 cd "D:\Projects\Capstone project\support_assistant"
 python .\retriever.py
-```
-
-Run the Mock LLM test:
-
-```powershell
 python .\mock_llm.py
-```
-
-Run the complete LangGraph workflow:
-
-```powershell
 python .\graph.py
 ```
 
@@ -460,6 +432,133 @@ is rejected by Pydantic.
 
 ---
 
+## Task 5 — FastAPI `/ask` Endpoint
+
+### What it does
+
+Exposes the support assistant through a REST API.
+
+```text
+Client
+  ↓
+POST /ask
+  ↓
+FastAPI
+  ↓
+LangGraph
+  ↓
+Retrieval + Generation
+  ↓
+Pydantic Response
+  ↓
+JSON
+```
+
+### Why FastAPI?
+
+FastAPI provides a simple HTTP interface for the support assistant and
+automatically generates interactive API documentation.
+
+### Why `POST /ask`?
+
+The endpoint receives a customer question as request data and sends it
+through the support workflow.
+
+Example request:
+
+```json
+{
+  "question": "How long does Zepto delivery take?"
+}
+```
+
+### Why validate the request?
+
+`AskRequest` uses Pydantic validation and requires the question to contain
+at least one character.
+
+This prevents empty requests from reaching the retrieval workflow.
+
+### Why use `response_model=SupportResponse`?
+
+The response uses the Pydantic schema created in Task 4.
+
+This ensures that the API returns a consistent structure containing:
+
+```text
+answer
+sources
+confidence
+```
+
+### Why reuse LangGraph?
+
+The API does not duplicate retrieval or generation logic. It calls the
+existing LangGraph workflow from Task 3.
+
+This keeps the API layer separate from the AI workflow and makes the
+components easier to maintain.
+
+### Why is confidence currently `1.0`?
+
+The current workflow uses a deterministic Mock LLM and does not calculate
+a calibrated confidence score. Therefore, `1.0` is used only to satisfy
+the current structured response schema. It should not be interpreted as a
+real probability.
+
+### Testing
+
+Start the API:
+
+```powershell
+cd "D:\Projects\Capstone project\support_assistant"
+uvicorn app:app --reload
+```
+
+FastAPI should start at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Open the interactive documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+The Swagger UI should show:
+
+```text
+GET  /
+POST /ask
+```
+
+Test `/ask` using:
+
+```json
+{
+  "question": "How long does Zepto delivery take?"
+}
+```
+
+The endpoint successfully returns the validated `SupportResponse` JSON.
+
+### Task 5 status
+
+- [x] Create FastAPI application
+- [x] Create `AskRequest` model
+- [x] Validate user questions
+- [x] Create `POST /ask`
+- [x] Connect `/ask` to LangGraph
+- [x] Use `SupportResponse`
+- [x] Add root endpoint
+- [x] Test API
+- [x] Test invalid input
+- [x] Verify Swagger documentation
+
+---
+
 ## Module 3 — Task Progress
 
 | Task | Component | Status |
@@ -468,6 +567,6 @@ is rejected by Pydantic.
 | Task 2 | Structured prompt template | Completed |
 | Task 3 | LangGraph workflow & retrieval | Completed |
 | Task 4 | Structured Pydantic output | Completed |
-| Task 5 | FastAPI `/ask` endpoint | Pending |
+| Task 5 | FastAPI `/ask` endpoint | Completed |
 | Task 6 | Docker packaging | Pending |
 | Task 7 | Final documentation & validation | Pending |
