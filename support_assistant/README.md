@@ -32,6 +32,8 @@ support_assistant/
 └── README.md
 ```
 
+The files are added progressively as each task is completed.
+
 ---
 
 ## Task 1 — Document Ingestion, Embeddings & ChromaDB
@@ -45,9 +47,9 @@ Loads the 8 supplied Zepto support documents, creates embeddings using
 
 Each document is treated as **one chunk**.
 
-**Why?** The documents are short and each focuses on one main policy
-topic. Splitting them further would fragment the context and create
-unnecessary embeddings.
+**Why?** The supplied documents are short and each document focuses on
+one main policy topic. Splitting them into multiple chunks would
+unnecessarily increase the number of embeddings and fragment the context.
 
 ```text
 8 documents → 8 chunks
@@ -63,6 +65,9 @@ all-MiniLM-L6-v2
 
 Each chunk produces a **384-dimensional embedding**.
 
+**Why this model?** It is lightweight and suitable for local semantic
+search.
+
 ### ChromaDB
 
 The embeddings are stored in the support document collection using
@@ -72,8 +77,24 @@ cosine similarity.
 
 ### Re-runnable ingestion
 
-`upsert()` is used instead of `add()` so the ingestion script can be run
-again without creating duplicate document IDs.
+`upsert()` is used instead of `add()`.
+
+**Why?** The ingestion script can be run multiple times without creating
+duplicate document IDs.
+
+### Task 1 flow
+
+```text
+8 Documents
+    ↓
+1 Chunk / Document
+    ↓
+all-MiniLM-L6-v2
+    ↓
+384D Embeddings
+    ↓
+ChromaDB
+```
 
 ### How to run
 
@@ -100,6 +121,13 @@ python .\ingest.py
 
 Creates a reusable prompt template in `prompts.py`.
 
+The template accepts:
+
+- Retrieved context
+- User question
+
+and combines them with clear instructions for the support assistant.
+
 ```text
 Retrieved Context + User Question
               ↓
@@ -108,27 +136,30 @@ Retrieved Context + User Question
         LLM / Mock LLM
 ```
 
-The prompt contains role, context, task, format, length, negative
-constraint, and a few-shot example.
-
 ### Why use a structured prompt?
 
-It makes the assistant's expected behaviour clear and consistent.
+A structured prompt makes the assistant's expected behaviour clear and
+consistent. The same template can be reused for different customer
+questions.
 
-### Why include `{context}`?
+### Why include a context placeholder?
 
-It provides the location where relevant information retrieved from
-ChromaDB is inserted.
+The `{context}` placeholder is where relevant information retrieved from
+ChromaDB will be inserted into the RAG workflow.
 
 ### Why include a negative constraint?
 
-It helps prevent unsupported policies, prices, delivery times, or refund
-rules from being invented.
+The prompt instructs the assistant not to invent unsupported policies,
+prices, delivery times, refund rules, or other information.
 
 ### Why include a few-shot example?
 
-It demonstrates the expected relationship between context, question,
-answer, and sources.
+The example demonstrates the expected relationship between context,
+question, answer, and sources.
+
+### Why define the response format?
+
+A consistent format makes the result easier to process in later stages.
 
 ### Testing
 
@@ -137,7 +168,8 @@ cd "D:\Projects\Capstone project\support_assistant"
 python .\prompts.py
 ```
 
-No LLM is required because this test validates the prompt template itself.
+No LLM is required for this test because Task 2 validates the prompt
+template itself.
 
 ### Task 2 status
 
@@ -149,6 +181,7 @@ No LLM is required because this test validates the prompt template itself.
 - [x] Define response length
 - [x] Add negative constraint
 - [x] Add few-shot example
+- [x] Add prompt formatting function
 - [x] Test prompt formatting
 
 ---
@@ -173,8 +206,8 @@ Answer
 
 ### Retrieval
 
-`retriever.py` converts the question into an embedding and searches the
-ChromaDB collection.
+`retriever.py` converts the user question into an embedding and searches
+the ChromaDB collection.
 
 The top 3 relevant documents are returned.
 
@@ -183,10 +216,12 @@ documents and excessive context.
 
 ### Why separate retrieval from the graph?
 
-Retrieval is kept in `retriever.py` and workflow logic in `graph.py`,
-making the components easier to maintain and test.
+Retrieval is kept in `retriever.py`, while workflow logic is kept in
+`graph.py`. This keeps the components easier to maintain and test.
 
 ### LangGraph
+
+The workflow contains:
 
 ```text
 START
@@ -202,15 +237,14 @@ END
 
 `mock_llm.py` provides a deterministic local replacement for a real LLM.
 
-**Why?** The workflow can be tested without an external API key, network
-dependency, or model cost.
+**Why use a Mock LLM?** It allows the workflow to be tested without an
+external API key, network dependency, or model cost.
 
 ### Testing
 
 ```powershell
 cd "D:\Projects\Capstone project\support_assistant"
-python .
-etriever.py
+python .\retriever.py
 python .\mock_llm.py
 python .\graph.py
 ```
@@ -234,7 +268,8 @@ python .\graph.py
 
 ### What it does
 
-Defines the structured response format using Pydantic.
+Defines the structured response format for the support assistant using
+Pydantic.
 
 ```text
 LangGraph Result
@@ -256,11 +291,12 @@ confidence   → Confidence score between 0 and 1
 
 ### Why use Pydantic?
 
-It provides a fixed schema so the application produces predictable data.
+LLM responses are normally unstructured text. Pydantic provides a fixed
+schema so the application produces predictable data.
 
 ### Why include `sources`?
 
-Sources make the response traceable to the retrieved knowledge base.
+The sources make the response traceable to the retrieved knowledge base.
 A list is used because one question may require multiple documents.
 
 ### Why validate `confidence`?
@@ -310,8 +346,8 @@ JSON
 
 ### Why FastAPI?
 
-FastAPI provides an HTTP interface and automatically generates interactive
-API documentation.
+FastAPI provides an HTTP interface for the support assistant and
+automatically generates interactive API documentation.
 
 ### Why `POST /ask`?
 
@@ -328,8 +364,18 @@ Example:
 
 ### Why validate the request?
 
-`AskRequest` requires a non-empty question so invalid input does not reach
-the retrieval workflow.
+`AskRequest` requires a non-empty question so invalid input does not
+reach the retrieval workflow.
+
+### Why use `response_model=SupportResponse`?
+
+It ensures the API returns a consistent structure:
+
+```text
+answer
+sources
+confidence
+```
 
 ### Why reuse LangGraph?
 
@@ -337,6 +383,8 @@ The API calls the existing workflow instead of duplicating retrieval and
 generation logic.
 
 ### Testing
+
+Start the API:
 
 ```powershell
 cd "D:\Projects\Capstone project\support_assistant"
@@ -378,8 +426,8 @@ The `/ask` endpoint was successfully tested through Swagger.
 
 ### What it does
 
-Packages the complete support assistant into a Docker image so it can run
-in an isolated and reproducible environment.
+Packages the complete support assistant into a Docker image so the
+application can run in an isolated and reproducible environment.
 
 ```text
 Docker Image
@@ -400,8 +448,8 @@ FastAPI
 ### Why Docker?
 
 The application depends on Python packages, an embedding model, and
-ChromaDB. Docker packages the environment so it does not depend on the
-host Python environment.
+ChromaDB. Docker packages the environment so the application can be run
+without depending on the host Python environment.
 
 ### Dockerfile
 
@@ -411,14 +459,16 @@ The Dockerfile uses:
 python:3.11-slim
 ```
 
+**Why?** It provides Python in a relatively lightweight base image.
+
 The Dockerfile also runs:
 
 ```dockerfile
 RUN python ingest.py
 ```
 
-**Why?** ChromaDB is generated from the source documents. Running
-ingestion while building the image makes the image self-contained.
+**Why?** The ChromaDB collection is generated from the source documents.
+Running ingestion while building the image makes the image self-contained.
 
 ### `.dockerignore`
 
@@ -432,32 +482,37 @@ __pycache__/
 .gitignore
 ```
 
-This prevents unnecessary local files from being copied into the image.
+**Why?** These files are not required inside the image and excluding them
+keeps the build context smaller.
 
 ### Requirements
 
-A `requirements.txt` must exist inside `support_assistant`.
+The module keeps a local:
 
-**Why?** Docker uses `support_assistant` as its build context, so the
-dependency file must be available inside that directory.
+```text
+support_assistant/requirements.txt
+```
+
+**Why?** Docker builds using `support_assistant` as the build context, so
+the dependency file must be available inside that directory.
 
 ### Complete Task 6 command sequence
 
-Run these commands **in order**.
+Run the commands below **in order**.
 
-#### 1. Go to the module
+#### Step 1 — Go to the module
 
 ```powershell
 cd "D:\Projects\Capstone project\support_assistant"
 ```
 
-#### 2. Check Docker
+#### Step 2 — Confirm Docker is installed
 
 ```powershell
 docker --version
 ```
 
-#### 3. Check Docker Engine
+#### Step 3 — Confirm Docker Engine is running
 
 ```powershell
 docker info
@@ -472,10 +527,11 @@ Server:
 ...
 ```
 
-If the Server section cannot connect, start Docker Desktop and wait until
-the Docker Engine is running.
+If the `Server` section reports that the Docker API/engine cannot be
+reached, start Docker Desktop and wait until the engine is running before
+continuing.
 
-#### 4. Check WSL 2
+#### Step 4 — Check WSL
 
 ```powershell
 wsl -l -v
@@ -483,21 +539,21 @@ wsl -l -v
 
 Docker Desktop on Windows should have a working WSL 2 backend.
 
-#### 5. Check required files
+#### Step 5 — Check the required files
 
 ```powershell
 Get-ChildItem Dockerfile,.dockerignore,requirements.txt
 ```
 
-All three files should exist inside `support_assistant`.
+The three files should exist inside `support_assistant`.
 
-#### 6. Verify the Dockerfile
+#### Step 6 — Check the Dockerfile
 
 ```powershell
 Get-Content .\Dockerfile
 ```
 
-It should contain:
+The Dockerfile should contain:
 
 ```dockerfile
 FROM python:3.11-slim
@@ -517,7 +573,7 @@ EXPOSE 7860
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
 ```
 
-#### 7. Verify `.dockerignore`
+#### Step 7 — Check `.dockerignore`
 
 ```powershell
 Get-Content .\.dockerignore
@@ -533,7 +589,7 @@ __pycache__/
 .gitignore
 ```
 
-#### 8. Check Docker Hub connectivity
+#### Step 8 — Test Docker Hub connectivity
 
 ```powershell
 nslookup registry-1.docker.io
@@ -545,15 +601,28 @@ Then:
 docker pull python:3.11-slim
 ```
 
-This confirms Docker can reach Docker Hub before the full build.
+**Why?** The Dockerfile needs the `python:3.11-slim` base image. This
+command confirms that Docker can reach Docker Hub before starting the full
+build.
 
-#### 9. Build the image
+If the image is already available, Docker may report:
+
+```text
+Status: Image is up to date for python:3.11-slim
+```
+
+#### Step 9 — Build the Docker image
 
 ```powershell
 docker build -t zepto-support-assistant .
 ```
 
-Wait for:
+**Why?** The `.` means the current `support_assistant` directory is used
+as the Docker build context.
+
+Wait until the build finishes successfully.
+
+A successful build should contain:
 
 ```text
 FINISHED
@@ -565,29 +634,36 @@ and:
 naming to docker.io/library/zepto-support-assistant:latest
 ```
 
-#### 10. Verify the image
+#### Step 10 — Verify the image
 
 ```powershell
 docker images zepto-support-assistant
 ```
 
-#### 11. Run the container
+The image should be listed.
+
+#### Step 11 — Run the container
 
 ```powershell
 docker run --rm -p 7860:7860 zepto-support-assistant
 ```
 
-Keep this terminal open.
+**Why `-p 7860:7860`?**
 
-#### 12. Test the root endpoint
+The first `7860` is the Windows host port and the second `7860` is the
+container port used by Uvicorn.
 
-Open another PowerShell:
+Keep this terminal running.
+
+#### Step 12 — Test the root endpoint
+
+Open another PowerShell window and run:
 
 ```powershell
 curl http://127.0.0.1:7860/
 ```
 
-Expected:
+Expected response:
 
 ```json
 {
@@ -595,9 +671,9 @@ Expected:
 }
 ```
 
-#### 13. Open Swagger
+#### Step 13 — Open Swagger
 
-Open:
+Open in the browser:
 
 ```text
 http://127.0.0.1:7860/docs
@@ -610,7 +686,7 @@ GET /
 POST /ask
 ```
 
-#### 14. Test `/ask`
+#### Step 14 — Test `/ask`
 
 In Swagger:
 
@@ -637,65 +713,70 @@ sources
 confidence
 ```
 
-#### 15. Optional direct `/ask` test
+#### Step 15 — Optional direct API test
+
+From another PowerShell:
 
 ```powershell
-curl -X POST "http://127.0.0.1:7860/ask" -H "Content-Type: application/json" -d "{"question":"How long does Zepto delivery take?"}"
+curl -X POST "http://127.0.0.1:7860/ask" -H "Content-Type: application/json" -d "{\"question\":\"How long does Zepto delivery take?\"}"
 ```
 
 ### Common Task 6 errors
 
-#### `docker` is not recognized
+#### Error: `docker is not recognized`
+
+Docker Desktop/CLI is not installed or available in PATH.
+
+Check:
 
 ```powershell
 docker --version
 ```
 
-Install/start Docker Desktop and open a new PowerShell.
+#### Error: Docker API/daemon cannot be reached
 
-#### Docker API/daemon cannot be reached
+Start Docker Desktop and wait for the Docker Engine to run.
 
-Start Docker Desktop, wait for the engine, then run:
+Then:
 
 ```powershell
 docker info
 ```
 
-#### `requirements.txt` not found
+#### Error: `requirements.txt not found`
 
-Make sure it exists inside the module:
+Make sure the file exists inside the module:
 
 ```powershell
-Get-ChildItem .
-equirements.txt
+Get-ChildItem .\requirements.txt
 ```
 
-Run the build from:
+The build must be executed from:
 
 ```text
 D:\Projects\Capstone project\support_assistant
 ```
 
-#### `registry-1.docker.io ... no such host`
+#### Error: `registry-1.docker.io ... no such host`
 
-Run:
+Check:
 
 ```powershell
 nslookup registry-1.docker.io
 docker pull python:3.11-slim
 ```
 
-If the pull succeeds, run the build again.
+If `docker pull` succeeds, run the build again.
 
-#### `RUN python ingest.py` fails
+#### Error during `RUN python ingest.py`
 
-Check:
+Check that the source documents exist:
 
 ```powershell
 Get-ChildItem .\docs
 ```
 
-and test locally:
+Also make sure the same ingestion command works locally:
 
 ```powershell
 python .\ingest.py
@@ -711,13 +792,198 @@ python .\ingest.py
 - [x] Build Docker image
 - [x] Run `ingest.py` during image build
 - [x] Generate ChromaDB inside the image
-- [ ] Run Docker container
-- [ ] Verify Swagger inside container
-- [ ] Verify `/ask` inside container
+- [x] Run Docker container
+- [x] Verify Swagger inside container
+- [x] Verify `/ask` inside container
 
 ---
 
-## Module 3 — Task Progress
+## Task 7 — Final Documentation & Validation
+
+### What it does
+
+Performs the final validation of Module 3 and confirms that all
+components work together from document ingestion to the Dockerized
+FastAPI endpoint.
+
+### Final flow
+
+```text
+Documents
+   ↓
+Embeddings
+   ↓
+ChromaDB
+   ↓
+Retriever
+   ↓
+LangGraph
+   ↓
+Pydantic
+   ↓
+FastAPI
+   ↓
+Docker
+   ↓
+POST /ask
+```
+
+### Why perform final validation?
+
+Each task was tested individually during development. Task 7 verifies
+that the complete system still works together after all components have
+been integrated.
+
+### Validation performed
+
+```text
+ingest.py       → Document ingestion tested
+retriever.py    → Semantic retrieval tested
+graph.py        → LangGraph workflow tested
+schemas.py      → Structured output tested
+FastAPI         → /ask endpoint tested
+Docker          → Container build tested
+Docker /ask     → Final end-to-end API tested
+```
+
+### Step 1 — Validate ingestion
+
+```powershell
+cd "D:\Projects\Capstone project\support_assistant"
+python .\ingest.py
+```
+
+### Step 2 — Validate retrieval
+
+```powershell
+python .\retriever.py
+```
+
+### Step 3 — Validate LangGraph
+
+```powershell
+python .\graph.py
+```
+
+### Step 4 — Validate Pydantic
+
+```powershell
+python .\schemas.py
+```
+
+### Step 5 — Validate FastAPI
+
+```powershell
+uvicorn app:app --reload
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Test:
+
+```json
+{
+  "question": "How long does Zepto delivery take?"
+}
+```
+
+Stop the server with:
+
+```text
+CTRL + C
+```
+
+### Step 6 — Build the final Docker image
+
+```powershell
+docker build -t zepto-support-assistant .
+```
+
+### Step 7 — Run the final container
+
+```powershell
+docker run --rm -p 7860:7860 zepto-support-assistant
+```
+
+### Step 8 — Test the Docker root endpoint
+
+Open another PowerShell:
+
+```powershell
+curl http://127.0.0.1:7860/
+```
+
+Expected:
+
+```json
+{
+  "message": "Zepto Support Assistant API is running"
+}
+```
+
+### Step 9 — Test Docker Swagger
+
+Open:
+
+```text
+http://127.0.0.1:7860/docs
+```
+
+### Step 10 — Test Docker `/ask`
+
+Use:
+
+```json
+{
+  "question": "How long does Zepto delivery take?"
+}
+```
+
+The final response should contain:
+
+```text
+answer
+sources
+confidence
+```
+
+### Step 11 — Test another question
+
+```json
+{
+  "question": "Can I cancel my order?"
+}
+```
+
+This verifies that the application is not working only for one question.
+
+### Final validation status
+
+- [x] Document ingestion works
+- [x] Embeddings work
+- [x] ChromaDB works
+- [x] Retrieval works
+- [x] LangGraph workflow works
+- [x] Pydantic validation works
+- [x] FastAPI works
+- [x] Docker image builds
+- [x] Docker container runs
+- [x] Docker Swagger works
+- [x] Docker `/ask` works
+- [x] Final documentation completed
+- [x] Final validation completed
+
+### Task 7 status
+
+**Completed ✅**
+
+---
+
+## Module 3 — Final Task Progress
 
 | Task | Component | Status |
 |---|---|---|
@@ -726,5 +992,14 @@ python .\ingest.py
 | Task 3 | LangGraph workflow & retrieval | Completed |
 | Task 4 | Structured Pydantic output | Completed |
 | Task 5 | FastAPI `/ask` endpoint | Completed |
-| Task 6 | Docker packaging | In Progress |
-| Task 7 | Final documentation & validation | Pending |
+| Task 6 | Docker packaging | Completed |
+| Task 7 | Final documentation & validation | Completed |
+
+## Module 3 Status
+
+**Completed ✅**
+
+The Support Assistant module has been tested from document ingestion
+through the Dockerized `/ask` endpoint.
+
+---
