@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from graph import support_graph
-from schemas import SupportResponse
+from task3.graph import support_graph
+from task4.schemas import SupportResponse
 
 
 app = FastAPI(

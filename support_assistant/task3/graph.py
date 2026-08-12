@@ -2,8 +2,8 @@ from typing import TypedDict
 
 from langgraph.graph import StateGraph, START, END
 
-from retriever import retrieve_documents
-from mock_llm import mock_llm
+from task3.retriever import retrieve_documents
+from task3.mock_llm import mock_llm
 
 
 class SupportState(TypedDict, total=False):

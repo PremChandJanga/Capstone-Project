@@ -8,26 +8,44 @@ that knowledge base to LangGraph, structured output, FastAPI, and Docker.
 
 ```text
 support_assistant/
-├── docs/
-│   ├── doc_01.txt
-│   ├── doc_02.txt
-│   ├── doc_03.txt
-│   ├── doc_04.txt
-│   ├── doc_05.txt
-│   ├── doc_06.txt
-│   ├── doc_07.txt
-│   └── doc_08.txt
-├── chroma_db/
-├── ingest.py
-├── prompts.py
-├── retriever.py
-├── mock_llm.py
-├── graph.py
-├── schemas.py
-├── app.py
-├── requirements.txt
-├── Dockerfile
-├── .dockerignore
+│
+├── task1/
+│   ├── docs/
+│   │   ├── doc_01.txt
+│   │   ├── doc_02.txt
+│   │   ├── doc_03.txt
+│   │   ├── doc_04.txt
+│   │   ├── doc_05.txt
+│   │   ├── doc_06.txt
+│   │   ├── doc_07.txt
+│   │   └── doc_08.txt
+│   ├── chroma_db/
+│   └── ingest.py
+│
+├── task2/
+│   └── prompts.py
+│
+├── task3/
+│   ├── __init__.py
+│   ├── retriever.py
+│   ├── mock_llm.py
+│   └── graph.py
+│
+├── task4/
+│   ├── __init__.py
+│   └── schemas.py
+│
+├── task5/
+│   ├── __init__.py
+│   └── app.py
+│
+├── task6/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   └── requirements.txt
+│
+├── task7/
+│
 ├── .gitignore
 └── README.md
 ```

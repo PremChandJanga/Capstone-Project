@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 
 BASE_DIR = Path(__file__).resolve().parent
-CHROMA_DIR = BASE_DIR / "chroma_db"
+CHROMA_DIR = BASE_DIR.parent / "task1" / "chroma_db"
 
 COLLECTION_NAME = "zepto_support_docs"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
