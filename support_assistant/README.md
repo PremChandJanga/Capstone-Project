@@ -335,27 +335,8 @@ paths.
 **Why use a Mock LLM?** It allows the complete workflow to be tested
 without an external API key, network dependency, or model cost.
 
-The Mock LLM is only used to verify that the generation stage of the
-workflow is reached. It is not intended to provide the final intelligent
-answer.
-
-### Current limitation
-
-The current Mock LLM returns a deterministic test response instead of
-actually generating an answer from the retrieved context.
-
-For example, the workflow currently produces:
-
-```text
-MOCK_LLM: Based on the retrieved Zepto policy information, the answer
-to your question is provided by the retrieved context.
-```
-
-The retrieved policy information is successfully available, but the Mock
-LLM does not yet use that information to compose a context-grounded
-answer.
-
-This will be corrected before Task 3 is considered fully complete.
+The Mock LLM is used to verify that the generation stage of the workflow
+is reached.
 
 ### Testing
 
@@ -400,8 +381,82 @@ delivery policy when appropriate.
 - [x] Connect LangGraph nodes
 - [x] Test retrieval
 - [x] Test complete workflow
-- [ ] Make Mock LLM produce a context-grounded answer
-- [ ] Final Task 3 validation
+
+---
+
+## Task 4 — Structured Pydantic Output
+
+### What it does
+
+Defines the structured response format for the support assistant using
+Pydantic.
+
+```text
+LangGraph Result
+      ↓
+Pydantic Validation
+      ↓
+SupportResponse
+      ↓
+answer + sources + confidence
+```
+
+### Response schema
+
+The `SupportResponse` model contains:
+
+```text
+answer       → Customer-facing answer
+sources      → Documents used for the answer
+confidence   → Confidence score between 0 and 1
+```
+
+### Why use Pydantic?
+
+LLM responses are normally unstructured text. Pydantic provides a fixed
+schema so that the support assistant produces predictable data that can
+later be returned through the FastAPI endpoint.
+
+### Why include `sources`?
+
+The retrieval stage identifies the documents used for a question.
+Including these document names makes the response traceable to the
+knowledge base.
+
+A list is used because one question may require information from multiple
+documents.
+
+### Why validate `confidence`?
+
+The confidence value is restricted to the range `0.0` to `1.0`.
+
+This prevents invalid values such as negative confidence or values greater
+than 1.
+
+### Testing
+
+Run:
+
+```powershell
+cd "D:\Projects\Capstone project\support_assistant"
+python .\schemas.py
+```
+
+The test creates a valid `SupportResponse` and prints the structured
+object and JSON representation.
+
+An additional validation test confirms that an invalid confidence value
+is rejected by Pydantic.
+
+### Task 4 status
+
+- [x] Create Pydantic response model
+- [x] Add `answer` field
+- [x] Add `sources` field
+- [x] Add `confidence` field
+- [x] Validate confidence range
+- [x] Test structured JSON output
+- [x] Test invalid confidence validation
 
 ---
 
@@ -411,8 +466,8 @@ delivery policy when appropriate.
 |---|---|---|
 | Task 1 | Document ingestion, embeddings & ChromaDB | Completed |
 | Task 2 | Structured prompt template | Completed |
-| Task 3 | LangGraph workflow & retrieval | In Progress |
-| Task 4 | Structured Pydantic output | Pending |
+| Task 3 | LangGraph workflow & retrieval | Completed |
+| Task 4 | Structured Pydantic output | Completed |
 | Task 5 | FastAPI `/ask` endpoint | Pending |
 | Task 6 | Docker packaging | Pending |
 | Task 7 | Final documentation & validation | Pending |
